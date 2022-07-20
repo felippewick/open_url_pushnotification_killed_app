@@ -5,7 +5,11 @@
  */
 import { FontAwesome } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as React from 'react';
 import { ColorSchemeName, Pressable } from 'react-native';
@@ -16,15 +20,90 @@ import ModalScreen from '../screens/ModalScreen';
 import NotFoundScreen from '../screens/NotFoundScreen';
 import TabOneScreen from '../screens/TabOneScreen';
 import TabTwoScreen from '../screens/TabTwoScreen';
-import { RootStackParamList, RootTabParamList, RootTabScreenProps } from '../types';
+import {
+  RootStackParamList,
+  RootTabParamList,
+  RootTabScreenProps,
+} from '../types';
 import LinkingConfiguration from './LinkingConfiguration';
+import * as Linking from 'expo-linking';
 
-export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeName }) {
+export default function Navigation({
+  colorScheme,
+  token,
+  url,
+}: {
+  colorScheme: ColorSchemeName;
+}) {
+  // const [url, setUrl] = React.useState(null);
+  // const [expoToken, setExpoToken] = React.useState(null);
+  // const notificationListener = React.useRef();
+  // const responseListener = React.useRef();
+
+  // React.useEffect(() => {
+  //   registerForPushNotificationsAsync();
+  // }, []);
+
+  // async function registerForPushNotificationsAsync() {
+  //   if (Device.isDevice) {
+  //     const { status: existingStatus } =
+  //       await Notifications.getPermissionsAsync();
+  //     let finalStatus = existingStatus;
+  //     if (existingStatus !== 'granted') {
+  //       const { status } = await Notifications.requestPermissionsAsync();
+  //       finalStatus = status;
+  //     }
+  //     if (finalStatus !== 'granted') {
+  //       alert('Failed to get push token for push notification!');
+  //       return;
+  //     }
+  //     const token = (await Notifications.getExpoPushTokenAsync()).data;
+  //     console.log('Expo push token:', token);
+  //     setExpoToken(token);
+  //   } else {
+  //     alert('Must use physical device for Push Notifications');
+  //   }
+  // }
+
   return (
     <NavigationContainer
-      linking={LinkingConfiguration}
-      theme={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <RootNavigator />
+      linking={{
+        ...LinkingConfiguration,
+        subscribe(listener) {
+          // Listen to incoming links from deep linking
+          const onReceiveURL = ({ url }: { url: string }) => listener(url);
+          Linking.addEventListener('url', onReceiveURL);
+
+          // notificationListener.current =
+          //   Notifications.addNotificationReceivedListener((notification) => {
+          //     console.log('notification', notification);
+          //     setUrl(notification.request.content.data.url);
+          //   });
+          // // const subscription1 =
+          // responseListener.current =
+          //   Notifications.addNotificationResponseReceivedListener(
+          //     (response) => {
+          //       const url = response.notification.request.content.data.url;
+          //       console.log('url from push notification ', url);
+          //       //  Linking.openURL(url).catch((err) => console.log('error ', err));
+          //       listener(url);
+          //     }
+          //   );
+          // return () => {
+          //   // subscription1.remove();
+          //   // subscription2.remove();
+          //   Notifications.removeNotificationSubscription(
+          //     notificationListener.current
+          //   );
+          //   Notifications.removeNotificationSubscription(
+          //     responseListener.current
+          //   );
+          // };
+        },
+      }}
+      theme={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+    >
+      <RootNavigator url={url} token={token} />
     </NavigationContainer>
   );
 }
@@ -35,11 +114,17 @@ export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeNa
  */
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function RootNavigator() {
+function RootNavigator({ url, token }) {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Root" component={BottomTabNavigator} options={{ headerShown: false }} />
-      <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: 'Oops!' }} />
+      <Stack.Screen name="Root" options={{ headerShown: false }}>
+        {() => <BottomTabNavigator url={url} token={token} />}
+      </Stack.Screen>
+      <Stack.Screen
+        name="NotFound"
+        component={NotFoundScreen}
+        options={{ title: 'Oops!' }}
+      />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
         <Stack.Screen name="Modal" component={ModalScreen} />
       </Stack.Group>
@@ -53,7 +138,7 @@ function RootNavigator() {
  */
 const BottomTab = createBottomTabNavigator<RootTabParamList>();
 
-function BottomTabNavigator() {
+function BottomTabNavigator({ url, token }) {
   const colorScheme = useColorScheme();
 
   return (
@@ -61,19 +146,20 @@ function BottomTabNavigator() {
       initialRouteName="TabOne"
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
-      }}>
+      }}
+    >
       <BottomTab.Screen
         name="TabOne"
-        component={TabOneScreen}
         options={({ navigation }: RootTabScreenProps<'TabOne'>) => ({
-          title: 'Tab One',
+          title: 'Tab One1',
           tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
           headerRight: () => (
             <Pressable
               onPress={() => navigation.navigate('Modal')}
               style={({ pressed }) => ({
                 opacity: pressed ? 0.5 : 1,
-              })}>
+              })}
+            >
               <FontAwesome
                 name="info-circle"
                 size={25}
@@ -83,7 +169,9 @@ function BottomTabNavigator() {
             </Pressable>
           ),
         })}
-      />
+      >
+        {() => <TabOneScreen url={url} token={token} />}
+      </BottomTab.Screen>
       <BottomTab.Screen
         name="TabTwo"
         component={TabTwoScreen}
